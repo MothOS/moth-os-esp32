@@ -7,4 +7,4 @@ set(_INCLUDE
 
 idf_component_register(SRCS ${_SRCS}
         INCLUDE_DIRS "include" ${_INCLUDE}
-        REQUIRES "component_interface" "esp_http_client")
+        REQUIRES "moth-comm" "esp_http_client")

@@ -3,9 +3,8 @@
 #include <esp_log.h>
 #include <esp_system.h>
 #include <string.h>
-#include "component_interface.h"
+#include "moth-comm.h"
 #include "moth-transport.h"
-
 
 static const char *TAG = "moth-monitor";
 
@@ -28,15 +27,14 @@ _Noreturn void moth_monitor_task(void *pvParameters) {
     const TickType_t xDelay = 5000 / portTICK_PERIOD_MS;
     while (1) {
         // Wait for the wifi to be connected
-        EventBits_t bits =
-            xEventGroupWaitBits(shared_info->event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, 0);
-        if (bits & WIFI_CONNECTED_BIT) {
-
+        network_status_t network_status = moth_comm_get_network_status();
+        if (network_status == NETWORK_CONNECTED) {
             uint32_t free_heap = esp_get_free_heap_size();
             uint8_t base_mac_addr[6] = {0};
             char *mac_addr = calloc(13, sizeof(char));
             esp_efuse_mac_get_default(base_mac_addr);
-            snprintf(mac_addr, 13, "%X%X%X%X%X%X", base_mac_addr[0], base_mac_addr[1], base_mac_addr[2], base_mac_addr[3], base_mac_addr[4], base_mac_addr[5]);
+            snprintf(mac_addr, 13, "%X%X%X%X%X%X", base_mac_addr[0], base_mac_addr[1], base_mac_addr[2],
+                     base_mac_addr[3], base_mac_addr[4], base_mac_addr[5]);
             char msg[256];
             sprintf(msg, "{\"mac_address\":\"%s\",\"free_heap\":%u}", mac_addr, free_heap);
             free(mac_addr);

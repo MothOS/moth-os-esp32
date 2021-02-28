@@ -5,9 +5,9 @@
 #include <nvs_flash.h>
 #include <string.h>
 
-#include "component_interface.h"
-#include "moth-network.h"
+#include "moth-comm.h"
 #include "moth-monitor.h"
+#include "moth-network.h"
 
 static shared_info_t *shared_info;
 
@@ -26,6 +26,9 @@ void app_main(void) {
 
     shared_info = malloc(sizeof(shared_info_t));
     shared_info->event_group = xEventGroupCreate();
+    if (moth_comm_init() != 0) {
+        abort();
+    }
 
     xTaskCreate(moth_network_task, "NETWORKING", 5000, (void *)shared_info, 2, NULL);
     xTaskCreate(moth_monitor_task, "MONITORIG", 5000, (void *)shared_info, 10, NULL);
