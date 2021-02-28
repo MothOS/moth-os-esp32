@@ -31,10 +31,13 @@ uint8_t moth_transport_send_post_message(char* endpoint, char *msg, size_t msg_l
     esp_http_client_set_post_field(client, msg, msg_len);
     esp_err_t err = esp_http_client_perform(client);
 
+    free(url);
+
     if (err == ESP_OK) {
         ESP_LOGI(TAG, "Status = %d, content_length = %d", esp_http_client_get_status_code(client),
                  esp_http_client_get_content_length(client));
     }
     esp_http_client_cleanup(client);
+
     return 0;
 }
