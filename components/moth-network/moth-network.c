@@ -15,11 +15,16 @@
 #define ESP_MAXIMUM_RETRY 5
 
 static shared_info_t *shared_info = NULL;
+
+#define WIFI_CONNECTED_BIT BIT0
+#define WIFI_DISCONNECTED_BIT BIT1
+#define WIFI_FAIL_BIT BIT2
 static EventGroupHandle_t s_wifi_event_group;
 
 static const char *TAG = "moth-network";
 
 static int s_retry_num = 0;
+static bool network_connected = false;
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     switch (event_id) {
@@ -27,14 +32,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
             break;
         case WIFI_EVENT_STA_CONNECTED:
             ESP_LOGI(TAG, "WiFi event: WIFI_EVENT_STA_CONNECTED");
-            moth_comm_set_network_status(NETWORK_CONNECTED);
+            esp_event_post_to(shared_info->moth_event_loop, MOTH_NETWORK_EVENT, MOTH_NETWORK_CONNECTED, NULL, 0, 0);
             xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-            s_retry_num = 0;
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
-            moth_comm_set_network_status(NETWORK_DISCONNECTED);
-            xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
             ESP_LOGI(TAG, "WiFi event: WIFI_EVENT_STA_DISCONNECTED");
+            esp_event_post_to(shared_info->moth_event_loop, MOTH_NETWORK_EVENT, MOTH_NETWORK_DISCONNECTED, NULL, 0, 0);
+            xEventGroupSetBits(s_wifi_event_group, WIFI_DISCONNECTED_BIT);
             if (s_retry_num < ESP_MAXIMUM_RETRY) {
                 ESP_LOGI(TAG, "Retry to connect to the AP");
                 esp_wifi_connect();
@@ -50,6 +54,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
             break;
         }
         case IP_EVENT_STA_LOST_IP:
+            ESP_LOGI(TAG, "IP event: IP_EVENT_STA_LOST_IP");
             break;
         default:
             break;
@@ -99,6 +104,10 @@ uint8_t wifi_connect(void) {
      * happened. */
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "Connected");
+        network_connected = true;
+        xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        xEventGroupClearBits(s_wifi_event_group, WIFI_DISCONNECTED_BIT);
+        xEventGroupClearBits(s_wifi_event_group, WIFI_FAIL_BIT);
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(TAG, "Failed to connect");
         return 1;
@@ -111,8 +120,8 @@ uint8_t wifi_connect(void) {
 
 _Noreturn void moth_network_task(void *pvParameters) {
     shared_info = (shared_info_t *)pvParameters;
-    if (shared_info->event_group == NULL) {
-        ESP_LOGE(TAG, "Cannot start moth_network_task, events group");
+    if (shared_info->moth_event_loop == NULL) {
+        ESP_LOGE(TAG, "BAD");
     }
 
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
@@ -122,11 +131,18 @@ _Noreturn void moth_network_task(void *pvParameters) {
     const TickType_t period = 1000 / portTICK_PERIOD_MS;
     const TickType_t reconnect_delay = 10000 / portTICK_PERIOD_MS;
     while (1) {
-        EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT, pdFALSE, pdFALSE, 0);
-        if ((bits & WIFI_CONNECTED_BIT) == 0) {
+        EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_DISCONNECTED_BIT, pdFALSE, pdFALSE, 0);
+
+        if (network_connected) {
+            if (bits & WIFI_DISCONNECTED_BIT) {
+                xEventGroupClearBits(s_wifi_event_group, WIFI_DISCONNECTED_BIT);
+                network_connected = false;
+            }
+        } else {
             // Cannot connect, wait a bit longer and try again.
             if (wifi_connect() != 0) {
                 vTaskDelay(reconnect_delay);
+                continue;
             }
         }
 
