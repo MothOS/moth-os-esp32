@@ -41,3 +41,7 @@ uint8_t moth_transport_send_post_message(char* endpoint, char *msg, size_t msg_l
 
     return 0;
 }
+
+uint8_t moth_transport_testeable(){
+  return 0;
+}

@@ -12,5 +12,8 @@ set(EXTRA_COMPONENT_DIRS "../components")
 #
 set(TEST_COMPONENTS "testable" CACHE STRING "List of components to test")
 
+set(UNIT_TESTING ON CACHE INTERNAL "Unit testing active")
+set(CMOCK_DIR "$ENV{CMOCK_DIR}" CACHE INTERNAL "CMOCK installation dir")
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(moth-os-esp32)
