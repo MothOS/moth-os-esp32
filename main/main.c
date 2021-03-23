@@ -5,6 +5,8 @@
 #include <nvs_flash.h>
 #include <string.h>
 
+#include "moth-version.h"
+
 #include "moth-comm.h"
 #include "moth-monitor.h"
 #include "moth-network.h"
@@ -13,6 +15,17 @@ static shared_info_t *shared_info;
 
 /* Event source task related definitions */
 ESP_EVENT_DEFINE_BASE(MOTH_NETWORK_EVENT);
+
+
+void print_banner(){
+    printf(" \n");
+    printf("  __  __     _   _    ___  ___ \n");
+    printf(" |  \\/  |___| |_| |_ / _ \\/ __|\n");
+    printf(" | |\\/| / _ \\  _| ' \\ (_) \\__ \\\n");
+    printf(" |_|  |_\\___/\\__|_||_\\___/|___/\n");
+    printf(" version: %s\n", MOTH_VERSION);
+    printf("\n");
+}
 
 void nvs_init(void) {
     // Initialize NVS
@@ -25,6 +38,8 @@ void nvs_init(void) {
 }
 
 void app_main(void) {
+    print_banner();
+
     nvs_init();
 
     shared_info = malloc(sizeof(shared_info_t));
